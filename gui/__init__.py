@@ -62,6 +62,7 @@ class Gui(Ui_UI):
             self.mainWin.hide()
             self.icon.hide()
             print("退出成功")
+            self.exited and self.exited()
             sys.exit(0)
 
     def restart(self):
@@ -70,3 +71,9 @@ class Gui(Ui_UI):
         python = sys.executable
         os.execl(python, python, *sys.argv)
 
+    def setExit(self,func):
+        self.exited = func
+    def index_text(self, txt):
+        print("??>>>", txt)
+        self.txtMember.setText(txt.decode(encoding="utf-8"))
+        #self.txtMember.setText(txt)
