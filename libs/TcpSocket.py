@@ -10,34 +10,34 @@ class TcpHandler(socketserver.BaseRequestHandler):
     hart_time = 0
 
     def setup(self):
+        print("?>>>>>socket>>>setup")
         # self.request.sendall("连接服务器成功!".encode(encoding='utf8'))
-        # self.request.send("连接服务器成功!".encode(encoding='utf8'))
-        # 加入连接池
-        g_conn_pool.append(self.request)
-
-    def handle(self):
+        self.request.send("连接服务器成功!".encode(encoding='utf8'))
         print('addr is', self.client_address[0], ":", self.client_address[1], 'conn is', self.request)  # conn
         self.ip, self.port = self.client_address[0], self.client_address[1]
-        self.server.wrap.setTcpPool(self.ip, self.port, self)
+        print(">>>socket>>>setup>>>>>>", "当前所运行线程名：", threading.currentThread().name, "线程ID",
+              threading.currentThread().ident)
+        self.on_open()
 
+    def handle(self):
+        print(">>>socket>>>start>>>>>>", "当前所运行线程名：", threading.currentThread().name, "线程ID", threading.currentThread().ident)
+        self.on_start()
         while True:
             try:
                 # 收消息
                 # 当它不断地收的时候用下面这一行代码判断
 
-                data = self.request.recv(1024)
-                if not data:
-                    print("链接断开!")
-                    self.remove()
-                    break
-                print('客户端消息', data.strip(), self.client_address)
+                msg = self.request.recv(1024)
+                if not msg: break
+                print('客户端消息', msg.strip(), self.client_address)
                 # print("客户端消息：", bytes.decode(encoding="utf8"))
                 # 发消息
-                res = self.ing(data)
+                res = self.on_message(msg)
                 self.send(res)
             except Exception as e:
-                print("链接断开!报错：", e)
-                self.remove()
+                print("异常导致客户端链接断开!：", e)
+                self.on_error(e)
+                # self.remove(self.ip, self.port)
                 break
 
     def recv(self):
@@ -52,16 +52,45 @@ class TcpHandler(socketserver.BaseRequestHandler):
         except Exception as err:
             print("【err】send :" + str(err) + " ({0}:{1})".format(self.ip, self.port))
 
-    def ing(self, data):
-        print("cb回调处理")
-        return self.server.event["ing"](data, self)
+    def on_open(self):
+        # 钩子函数：获取ip,port,tcp
+        self.register()
+        event = self.server.event
+        "on_open" in event and event["on_open"](self)
+
+    def on_start(self):
+        # 钩子函数：获取客户端配置信息
+        event = self.server.event
+        "on_start" in event and event["on_start"](self)
+
+    def on_message(self, msg):
+        # 钩子函数：处理通讯信息
+        return self.server.event["on_message"](self, msg)
+
+    def on_close(self):
+        # 钩子函数：处理客户端断开情况
+        event = self.server.event
+        "on_close" in event and event["on_close"](self)
+
+    def on_error(self, error):
+        event = self.server.event
+        "on_error" in event and event["on_error"](self, error)
+
+    def unregister(self, ip, port):
+        self.server.wrap.unregister(ip, port, self)
+        print("客户端", ip, ":", port, "断开。")
+        # g_conn_pool.remove(self.request)
+
+    def register(self):
+        self.server.wrap.register(self, self.ip, self.port)
+
+    def clear(self):
+        self.server.wrap.clear()
 
     def finish(self):
-        print(">>>>>>>>>>>结束socketserver监听,清除了这个客户端。")
-
-    def remove(self):
-        print("有一个客户端掉线了。")
-        g_conn_pool.remove(self.request)
+        self.unregister(self.ip, self.port)
+        self.on_close()
+        # self.clear()
 
 from concurrent.futures import ThreadPoolExecutor
 class ThreadingPoolTCPServer(socketserver.ThreadingTCPServer):
@@ -79,23 +108,32 @@ class TcpServer():
         self.tcpServer = ThreadingPoolTCPServer(address, handle,
                                                 thread_n=number) if number else socketserver.ThreadingTCPServer(ADDRESS,
                                                                                                                 TcpHandler)
-        self.pool = {}
+        self.clients = {}
         self.tcpServer.wrap = self
-        self.tcpServer.event = {"ing": lambda d, s: d}
+        self.tcpServer.event = {"on_message": lambda s, msg: msg}
 
         for k, handle in event.items():
             self.tcpServer.event[k] = handle
 
-    def setTcpPool(self, ip, port, tcp):
+    def register(self, tcp, ip, port):
         address = ip + str(port)
-        self.pool[address] = tcp
+        self.clients[address] = tcp
 
-    def getTcpPool(self):
-        return self.pool
+    def unregister(self, ip, port, tcp):
+        address = ip + str(port)
+        clients = self.clients
+        address in clients and self.clients.pop(address)
+        print("移除", address, "剩余", dict(self.getClients()))
+
+    def clear(self):
+        self.clients.clear()
+
+    def getClients(self):
+        return self.clients
 
     def send(self, address, emit):
         print(">>>>>>", address, )
-        self.pool[address].request.send(emit.encode(encoding="utf8")) if address in self.pool else print("发送失败：没有该",
+        self.clients[address].request.send(emit.encode(encoding="utf8")) if address in self.clients else print("发送失败：没有该",
                                                                                                          address, "客户端")
 
     def run(self, *args):

@@ -1,15 +1,15 @@
 import sys
 from PyQt5.QtWidgets import QApplication, QMainWindow
 from gui import Gui
-from libs.Tcp import createWebSocket as cw
+from libs.TcpSocket import createWebSocket as cw
 
 if __name__ == "__main__":
     gui = Gui()
     QApp = QApplication(sys.argv)
     gui.init()
-    def ing(d, s):
+    def ing(s, d):
         return gui.index_text(d)
-    cwApp = cw(number=3, ing=ing)
+    cwApp = cw(number=3, on_message=ing)
     def end():
         for k, v in cwApp.pool.items():
             cwApp.send(k, "服务器关闭链接！！！")
