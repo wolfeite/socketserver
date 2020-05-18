@@ -1,7 +1,7 @@
 import sys
-from PyQt5.QtWidgets import QApplication, QMainWindow
+from PyQt5.QtWidgets import QApplication
 from gui import Gui
-from libs.TcpSocket import createWebSocket as cw
+from libs.socket import tcpSocketServerApp as tssApp, webSocketServerApp as wssApp
 
 if __name__ == "__main__":
     gui = Gui()
@@ -9,10 +9,11 @@ if __name__ == "__main__":
     gui.init()
     def ing(s, d):
         return gui.index_text(d)
-    cwApp = cw(number=3, on_message=ing)
+    tsApp = tssApp(("0.0.0.0", 6868), on_message=ing)
+    wsApp = wssApp(("0.0.0.0", 6869))
     def end():
-        for k, v in cwApp.pool.items():
-            cwApp.send(k, "服务器关闭链接！！！")
+        for k, v in tsApp.clients.items():
+            tsApp.send(k, "服务器关闭链接！！！")
     gui.setExit(end)
     # QApp.exec_()
     sys.exit(QApp.exec_())

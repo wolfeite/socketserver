@@ -1,5 +1,7 @@
 import socketserver
 import threading
+import socket
+import time
 
 ADDRESS = ('localhost', 6868)  # 绑定地址
 
@@ -20,7 +22,8 @@ class TcpHandler(socketserver.BaseRequestHandler):
         self.on_open()
 
     def handle(self):
-        print(">>>socket>>>start>>>>>>", "当前所运行线程名：", threading.currentThread().name, "线程ID", threading.currentThread().ident)
+        print(">>>socket>>>start>>>>>>", "当前所运行线程名：", threading.currentThread().name, "线程ID",
+              threading.currentThread().ident)
         self.on_start()
         while True:
             try:
@@ -105,8 +108,9 @@ class ThreadingPoolTCPServer(socketserver.ThreadingTCPServer):
 class TcpServer():
     def __init__(self, address, handle, number=None, **event):
         number = number if isinstance(number, int) else None
+        print(">>>number:", number)
         self.tcpServer = ThreadingPoolTCPServer(address, handle,
-                                                thread_n=number) if number else socketserver.ThreadingTCPServer(ADDRESS,
+                                                thread_n=number) if number else socketserver.ThreadingTCPServer(address,
                                                                                                                 TcpHandler)
         self.clients = {}
         self.tcpServer.wrap = self
@@ -133,18 +137,79 @@ class TcpServer():
 
     def send(self, address, emit):
         print(">>>>>>", address, )
-        self.clients[address].request.send(emit.encode(encoding="utf8")) if address in self.clients else print("发送失败：没有该",
-                                                                                                         address, "客户端")
+        self.clients[address].request.send(emit.encode(encoding="utf8")) if address in self.clients else print(
+            "发送失败：没有该",
+            address, "客户端")
+    def sendAll(self):
+        pass
+
+    def restart(self):
+        pass
+
+    def stop(self):
+        pass
 
     def run(self, *args):
         # cb = kwargs["cb"] if "cb" in kwargs else lambda d, s: d
         # self.setCb(args[0])
         self.tcpServer.serve_forever()
 
-def createWebSocket(number=None, **event):
-    tcp = TcpServer(ADDRESS, TcpHandler, number, **event)
-    thread = threading.Thread(target=tcp.run)
-    thread.setDaemon(True)
-    tcp.thread = thread
-    thread.start()
-    return tcp
+class TcpClient():
+    def __init__(self, address, **conf):
+        # socket.setdefaulttimeout(0.01)
+        "timeout" in conf and socket.setdefaulttimeout(conf["timeout"])
+        self.client = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
+        self.address = address
+        self.bufsize = 1024
+
+    def on_open(self):
+        def run(*args):
+            for i in range(1):
+                time.sleep(1)
+                self.send("tcpTest %d" % i)
+            time.sleep(1)
+            # ws.close()
+            print("thread terminating...")
+        threading.Thread(target=run).start()
+
+    def on_message(self, msg):
+        print('收到服务端发来的消息：%s' % msg.decode('utf-8'))
+        return msg
+
+    def on_error(self, error):
+        print("客户端抛出异常", error)
+
+    def on_close(self):
+        print("客户端通讯关闭")
+
+    def stop(self):
+        self.client.close()
+        self.on_close()
+
+    def input(self):
+        msg = input('请你输入命令>>：').strip()
+
+    def send(self, msg):
+        self.client.send(msg.encode('utf-8'))
+
+    def run(self):
+
+        try:
+            self.client.connect(self.address)
+            self.on_open()
+            c = self.client
+            bufsize = self.bufsize
+
+            while True:
+                # 发收消息
+                msg = c.recv(bufsize)
+                if not msg: break
+                # print("客户端消息：", bytes.decode(encoding="utf8"))
+                res = self.on_message(msg)
+                # 发消息
+                # self.send(res)
+
+        except Exception as e:
+            self.on_error(e)
+
+        self.stop()
