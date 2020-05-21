@@ -17,11 +17,16 @@ class Gui(Ui_UI):
         self.mainWin = QMainWindow()
         self.mainWin.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
         self.setupUi(self.mainWin)
+        self.timer = self.QTimer
         # print("开始gui创建111")
         # self.mainWin.show()
         self.set_icon()
         self.set_menus()
         self.set_icon_menus()
+
+    @property
+    def QTimer(self):
+        return QtCore.QTimer()
 
     def set_icon(self):
         self.icon = QSystemTrayIcon(self.mainWin)
@@ -62,7 +67,7 @@ class Gui(Ui_UI):
             self.mainWin.hide()
             self.icon.hide()
             print("退出成功")
-            self.exited and self.exited()
+            hasattr(self, "exited") and self.exited()
             sys.exit(0)
 
     def restart(self):
@@ -71,9 +76,20 @@ class Gui(Ui_UI):
         python = sys.executable
         os.execl(python, python, *sys.argv)
 
-    def setExit(self,func):
+    def setExit(self, func):
         self.exited = func
-    def index_text(self, txt):
-        print("??>>>", txt)
-        self.txtMember.setText(txt.decode(encoding="utf-8"))
-        #self.txtMember.setText(txt)
+
+    def __getitem__(self, item):
+        return getattr(self, item, None)
+
+    def clearText(self, objKey):
+        # self[objKey].clear()
+        self.links.clear()
+
+    def setText(self, objKey, txt):
+        Qobject = self[objKey]
+        Qobject.setText(txt)
+
+    def insertText(self, objKey, txt):
+        Qobject = self[objKey]
+        Qobject.insertPlainText(txt)

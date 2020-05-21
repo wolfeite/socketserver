@@ -1,6 +1,17 @@
 from libs.socket import webSocketClientApp as wscApp
+import time
+import _thread as thread
 
-clientApp = wscApp(("127.0.0.1", 6869))
+def on_open(ws):
+    def run(*args):
+        for i in range(2000):
+            time.sleep(0.001)
+            ws.send("Hello %d" % i)
+        time.sleep(1)
+        # ws.close()
+        print("thread terminating...")
+    thread.start_new_thread(run, ())
+clientApp = wscApp(("127.0.0.1", 6869), on_open=on_open)
 
 # import websocket
 # try:

@@ -2,18 +2,18 @@ import threading
 from .TcpSocket import TcpServer, TcpHandler, TcpClient
 from .WebSocket import WebSocketServer, WebSocketClient
 
+from ..Thread import Thread, threadFactory
+
 def tcpSocketServerApp(address, number=None, **event):
     tsApp = TcpServer(address, TcpHandler, number, **event)
-    thread = threading.Thread(target=tsApp.run)
-    thread.setDaemon(True)
+    thread = threadFactory(tsApp.run)
     tsApp.thread = thread
-    thread.start()
     return tsApp
 
 def webSocketServerApp(address, **conf):
     wsApp = WebSocketServer(*address, **conf)
-    thread = threading.Thread(target=wsApp.run)
-    thread.setDaemon(True)
+    thread = Thread(wsApp.run)
+    # thread = threadFactory(wsApp.run)
     wsApp.thread = thread
     thread.start()
     return wsApp

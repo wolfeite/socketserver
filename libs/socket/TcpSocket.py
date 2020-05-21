@@ -68,7 +68,7 @@ class TcpHandler(socketserver.BaseRequestHandler):
 
     def on_message(self, msg):
         # 钩子函数：处理通讯信息
-        return self.server.event["on_message"](self, msg)
+        return self.server.event["on_message"](self, msg.decode(encoding="utf-8"))
 
     def on_close(self):
         # 钩子函数：处理客户端断开情况
@@ -112,7 +112,7 @@ class TcpServer():
         self.tcpServer = ThreadingPoolTCPServer(address, handle,
                                                 thread_n=number) if number else socketserver.ThreadingTCPServer(address,
                                                                                                                 TcpHandler)
-        self.clients = {}
+        self.links = {}
         self.tcpServer.wrap = self
         self.tcpServer.event = {"on_message": lambda s, msg: msg}
 
@@ -120,39 +120,45 @@ class TcpServer():
             self.tcpServer.event[k] = handle
 
     def register(self, tcp, ip, port):
-        address = ip + str(port)
-        self.clients[address] = tcp
+        address = "{0}:{1}".format(ip, port)
+        self.links[address] = tcp
 
     def unregister(self, ip, port, tcp):
-        address = ip + str(port)
-        clients = self.clients
-        address in clients and self.clients.pop(address)
-        print("移除", address, "剩余", dict(self.getClients()))
+        address = "{0}:{1}".format(ip, port)
+        clients = self.links
+        address in clients and self.links.pop(address)
+        print("移除", address, "剩余", dict(self.clients))
 
     def clear(self):
-        self.clients.clear()
+        self.links.clear()
 
-    def getClients(self):
-        return self.clients
+    @property
+    def clients(self):
+        return self.links
 
     def send(self, address, emit):
         print(">>>>>>", address, )
-        self.clients[address].request.send(emit.encode(encoding="utf8")) if address in self.clients else print(
+        self.links[address].request.send(emit.encode(encoding="utf8")) if address in self.links else print(
             "发送失败：没有该",
             address, "客户端")
+
     def sendAll(self):
         pass
 
     def restart(self):
+        print("重启方法")
         pass
 
     def stop(self):
+        print("停止方法")
         pass
 
     def run(self, *args):
         # cb = kwargs["cb"] if "cb" in kwargs else lambda d, s: d
         # self.setCb(args[0])
         self.tcpServer.serve_forever()
+
+    #test = property(restart, stop)
 
 class TcpClient():
     def __init__(self, address, **conf):
