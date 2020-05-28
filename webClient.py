@@ -4,14 +4,19 @@ import _thread as thread
 
 def on_open(ws):
     def run(*args):
-        for i in range(2000):
+        for i in range(2):
             time.sleep(0.001)
             ws.send("Hello %d" % i)
         time.sleep(1)
         # ws.close()
         print("thread terminating...")
     thread.start_new_thread(run, ())
-clientApp = wscApp(("127.0.0.1", 6869), on_open=on_open)
+
+def on_message(ws, msg):
+    print("收到服务器消息!:", msg)
+    # print("客户端开始睡眠20秒")
+    # time.sleep(20)
+clientApp = wscApp(("127.0.0.1", 6869), on_open=on_open, on_message=on_message)
 
 # import websocket
 # try:

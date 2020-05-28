@@ -1,3 +1,8 @@
+# Author: 骆琦（wolfeite）
+# Corp: 朗迹
+# StartTime:2020.5.18
+# Version:1.0
+
 import socketserver
 import threading
 import socket
@@ -156,9 +161,11 @@ class TcpServer():
     def run(self, *args):
         # cb = kwargs["cb"] if "cb" in kwargs else lambda d, s: d
         # self.setCb(args[0])
+        # 同步完配置
+        time.sleep(0.01)
         self.tcpServer.serve_forever()
 
-    #test = property(restart, stop)
+    # test = property(restart, stop)
 
 class TcpClient():
     def __init__(self, address, **conf):
@@ -199,7 +206,8 @@ class TcpClient():
         self.client.send(msg.encode('utf-8'))
 
     def run(self):
-
+        # 同步完配置
+        time.sleep(0.01)
         try:
             self.client.connect(self.address)
             self.on_open()
