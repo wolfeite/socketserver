@@ -5,11 +5,13 @@ def config_web(gui, web):
         c["send_counts"] = 0
         gui.insertText("links", "{0}:{1}【状态：链接】\n".format(*c["address"]))
 
-    def on_message(client, server, message):
-        msg = "{0}:{1}：{2}\n".format(*client["address"], message)
+    def on_message(link, app, message):
+        msg = "{0}:{1}：{2}\n".format(*link["address"], message)
         # gui.insertText("receive", msg)
         # gui.insertPlainText("receive", msg)
-        client["recv_counts"] += 1
+        link["recv_counts"] += 1
+        # msg = msg.decode("utf-8")
+        # msg = msg if isinstance(msg, str) else msg.decode(encoding="utf-8")
         gui.receive.insertPlainText(msg)
         # gui.receive.setText(msg)
         # setPlainText,setText,insertPlainText

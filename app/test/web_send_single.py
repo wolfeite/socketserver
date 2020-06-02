@@ -14,7 +14,7 @@ def web_single_send(gui, web):
 
     def send(client, address, msg):
         global counts
-        web.send(address, msg)
+        web.send(client, msg)
         client["send_counts"] += 1
         counts = client["send_counts"]
 

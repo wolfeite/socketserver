@@ -39,6 +39,11 @@ PAYLOAD_LEN_EXT64 = 0x7f
 OPCODE_TEXT = 0x01
 CLOSE_CONN = 0x8
 
+'''
+    edit:
+    1-[by:骆琦,time:2020.5.18,bug:监听轮询时，加上异常捕获hook;]
+    2-[by:骆琦,time:2020.6.2,bug:接收信息时超出127后chr中文乱码;接收信息效率待优化]
+'''
 # -------------------------------- API ---------------------------------
 
 class API():
@@ -133,6 +138,7 @@ class WebSocketHandler(StreamRequestHandler):
     def __init__(self, socket, addr, server):
         self.server = server
         StreamRequestHandler.__init__(self, socket, addr, server)
+        # self.rfile = self.connection.makefile('rb', 0, encoding='utf8')
 
     def setup(self):
         StreamRequestHandler.setup(self)
@@ -187,10 +193,13 @@ class WebSocketHandler(StreamRequestHandler):
 
         masks = self.read_bytes(4)
         decoded = ""
+        bytes_list = bytearray()
         for char in self.read_bytes(payload_length):
             char ^= masks[len(decoded) % 4]
             decoded += chr(char)
-        self.server._message_received_(self, decoded)
+            bytes_list.append(char)
+        raw_str = str(bytes_list, encoding="utf-8")
+        self.server._message_received_(self, raw_str)
 
     def send_message(self, message):
         self.send_text(message)

@@ -5,9 +5,11 @@
 
 '''
 edit:
-    [time：2020.5.28, by：wolfeite,
+    1-[time：2020.5.28, by：wolfeite,
     bug：Loop基类当睡眠等待过长时，多次开停操作，造成多个线程共用一个stop状态,而产生无法自动退出线程的问题
     解决方案：为每个线程建立状态列表，当stop操作后，将所有线程状态都设置为关闭。]
+    2-[time：2020.5.30, by：wolfeite,
+    bug：循环语句异常，而导致无法结束进入stop状态。解决方案就是进行异常捕获处理，并抽离出run执行部分]
 '''
 import threading
 import time
@@ -46,65 +48,72 @@ class Loop():
         self.begin, self.end = None, None
         self._pond_ = {}
 
-    def loop(self):
+    def run(self):
         # 同步加载完轮询池
         time.sleep(0.01)
         id = threading.currentThread().ident
         isfunction(self.begin) and self.begin()
-        print("一个loop进入轮询！！！暂停后是否清空轮询池：{0}，间隔为：{1}，轮询池为：{2}".format(self.isClear, self.interval, self._pool_))
+        print("loop进入轮询！！！轮询池为：{0}，当前线程池：{1}".format(self._pool_, self._pond_))
+        try:
+            self.loop(id)
+        except Exception as e:
+            print("由于loop异常！执行stop操作", e)
+            self.stop()
+        isfunction(self.end) and self.end()
+        self.clearThread(id)
+
+    def loop(self, id):
         while not self._pond_[id]:
             for fns in self._pool_:
                 fns[0](*fns[1])
             time.sleep(self.interval)
-        isfunction(self.end) and self.end()
-        self.clearThread(id)
 
     def stop(self):
         self._isStop_ = True
         self._pool_ = [] if self.isClear else self._pool_
-        for id, isStop in self._pond_.items():
+        for id in self._pond_:
             self._pond_[id] = True
-        print("一个loop轮询结束！！！轮询池为：{0}： 未执行完成线程：{1}<<<".format(self._pool_, self._pond_))
+        print("loop轮询状态全设置为停止：True！！！轮询池为：{0}： 当前线程池：{1}<<<".format(self._pool_, self._pond_))
         return self
 
     def clearThread(self, id):
         self._pond_.pop(id)
-        print("线程{0}结束，当前线程池为：{1}".format(id, self._pond_))
+        print("线程{0}结束退出，当前线程池：{1}".format(id, self._pond_))
 
     def connect(self, func, args=[]):
-        fns = (func, args)
-        self._pool_.append(fns)
+        if self.isStop:
+            fns = (func, args)
+            self._pool_.append(fns)
         return self
 
     def setInterval(self, interval):
         self.interval = interval / 1000 if interval >= 1 else 0.1
+
+    @property
+    def isStop(self):
+        return self._isStop_
 
     def start(self, interval=100, begin=None, end=None):
         self.setInterval(interval)
         self.begin, self.end = begin, end
         if self._isStop_:
             self._isStop_ = False
-            t = threadFactory(self.loop, daemon=self.daemon)
+            t = threadFactory(self.run, daemon=self.daemon)
             self._pond_[t.ident] = False
-            print(">>>开始创建一个新进程ID:{0}来执行loop!!!".format(t.ident))
+            print(">>>创建新进程ID:{0},loop配置为：清空轮询池：{1}，间隔为：{2}，".format(t.ident, self.isClear, self.interval))
 
 class Timeout(Loop):
     def __init__(self, daemon=True, isClear=True):
         super(Timeout, self).__init__(daemon=daemon, isClear=isClear)
 
-    def loop(self):
-        id = threading.currentThread().ident
-        isfunction(self.begin) and self.begin()
-        print("timeout类实例！！！暂停后是否清空轮询池：{0}，间隔为：{1}，轮询池为：{2}".format(self.isClear, self.interval, self._pool_))
+    def loop(self, id):
         p = self._pool_
         length = len(p)
         for i in range(length):
             fns = p[i]
             fns[0](*fns[1])
             i < length - 1 and time.sleep(self.interval)
-        isfunction(self.end) and self.end()
         self.stop()
-        self.clearThread(id)
 
 class Interval(Loop):
     def __init__(self, daemon=True, isClear=True):
@@ -112,12 +121,8 @@ class Interval(Loop):
         self.wait = 0.2
         self.waiting = lambda t: t
         self.timer = Timer()
-    def loop(self):
-        # 同步加载完轮询池
-        time.sleep(0.01)
-        id = threading.currentThread().ident
-        isfunction(self.begin) and self.begin()
-        print("一个loop进入轮询！！！暂停后是否清空轮询池：{0}，间隔为：{1}，轮询池为：{2}".format(self.isClear, self.interval, self._pool_))
+
+    def loop(self, id):
         self.timer.start()
         while not self._pond_[id]:
             dis = self.timer.time
@@ -128,9 +133,6 @@ class Interval(Loop):
                 self.timer.start()
 
             time.sleep(self.wait)
-
-        isfunction(self.end) and self.end()
-        self.clearThread(id)
 
     def setWait(self, wait):
         self.wait = wait / 1000 if wait > 1 else 0.2
@@ -146,12 +148,7 @@ class Duration(Interval):
         super(Duration, self).__init__(daemon=daemon, isClear=isClear)
         self.duration = 1
 
-    def loop(self):
-        # 同步加载完轮询池
-        time.sleep(0.01)
-        id = threading.currentThread().ident
-        isfunction(self.begin) and self.begin()
-        print("一个loop进入轮询！！！暂停后是否清空轮询池：{0}，间隔为：{1}，轮询池为：{2}".format(self.isClear, self.interval, self._pool_))
+    def loop(self, id):
         self.timer.start()
         startTime = time.time()
         while not self._pond_[id]:
@@ -168,22 +165,9 @@ class Duration(Interval):
 
             time.sleep(self.wait)
 
-        isfunction(self.end) and self.end()
-        self.clearThread(id)
-
     def setDuration(self, duration):
         self.duration = duration / 1000 if duration > 1 else 1
 
-    def start(self, interval=400, begin=None, end=None, wait=200, duration=1000):
+    def start(self, interval=400, begin=None, end=None, wait=200, duration=1000, waiting=None):
         self.setDuration(duration)
-        super(Duration, self).start(interval=interval, begin=begin, end=end, wait=wait, waiting=None)
-
-class HeartBeat():
-    def __init__(self):
-        pass
-
-    def start(self):
-        pass
-
-    def keep_alive(self):
-        pass
+        super(Duration, self).start(interval=interval, begin=begin, end=end, wait=wait, waiting=waiting)

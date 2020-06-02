@@ -1,4 +1,4 @@
-from libs.socket import tcpSocketClientApp as tscApp
+from libs.socket import tcpSocketClient as tscApp
 clientApp = tscApp(('localhost', 6868))
 
 # from socket import *

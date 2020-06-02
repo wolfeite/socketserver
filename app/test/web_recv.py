@@ -29,11 +29,14 @@ def web_config_recv(gui, web):
         for key, val in web.clients.items():
             gui.insertText("links", "{0}【状态：链接】\n".format(key))
 
+    def checking(s):
+        gui.detect.setText("等待{0}秒".format(s))
+
     def detected():
         gui.links.clear()
         gui.detect.setEnabled(False)
         gui.detect.setText("检测中...")
-        web.check_alive(end=endChecked)
+        web.check_alive(end=endChecked, duration=5000, waiting=checking, interval=2000)
         # gui.links.clear()
 
     gui.timer.timeout.connect(aggregated)

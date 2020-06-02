@@ -11,6 +11,7 @@ def web_all_send(gui, web):
 
     def send(client, address, msg):
         global counts
+        print(client, address, msg)
         web.send(address, msg)
         client["send_counts"] += 1
         counts += 1
