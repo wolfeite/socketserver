@@ -24,6 +24,7 @@ def web_config_recv(gui, web):
         gui.receive.clear()
 
     def endChecked():
+        gui.links.setEnabled(True)
         gui.detect.setEnabled(True)
         gui.detect.setText("检测")
         for key, val in web.clients.items():
@@ -34,6 +35,7 @@ def web_config_recv(gui, web):
 
     def detected():
         gui.links.clear()
+        gui.links.setEnabled(False)
         gui.detect.setEnabled(False)
         gui.detect.setText("检测中...")
         web.check_alive(end=endChecked, duration=5000, waiting=checking, interval=2000)

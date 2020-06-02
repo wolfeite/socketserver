@@ -63,20 +63,25 @@ class TcpHandler(socketserver.BaseRequestHandler):
         return self.server.wrap
 
     def on_start(self):
-        self.wrap.hook("on_start", self.link, self.server)
+        self.wrap.on_start(self.link, self.server)
+        # self.wrap.hook("on_start", self.link, self.server)
 
     def on_open(self):
-        self.wrap.hook("on_open", self.link, self.server)
+        self.wrap.on_open(self.link, self.server)
+        # self.wrap.hook("on_open", self.link, self.server)
 
     def on_message(self, msg):
-        self.wrap.hook("on_message", self.link, self.server, msg.decode(encoding="utf-8"))
+        self.wrap.on_message(self.link, self.server, msg.decode(encoding="utf-8"))
+        # self.wrap.hook("on_message", self.link, self.server, msg.decode(encoding="utf-8"))
         # return self.server.event["on_message"](self, msg.decode(encoding="utf-8"))
 
     def on_error(self, error):
-        self.wrap.hook("on_error", self.link, self.server, error)
+        self.wrap.on_error(self.link, self.server, error)
+        # self.wrap.hook("on_error", self.link, self.server, error)
 
     def on_close(self):
-        self.wrap.hook("on_close", self.link, self.server)
+        self.wrap.on_close(self.link, self.server)
+        # self.wrap.hook("on_close", self.link, self.server)
 
     def finish(self):
         self.on_close()
@@ -161,6 +166,7 @@ class TcpClient(ApiSocket):
         msg = input('请你输入命令>>：').strip()
 
     def emit(self, link, msg):
+        print("tcp客户端发送：", msg)
         msg = msg if isinstance(msg, bytes) else bytes(str(msg if msg else "None"), encoding='utf-8')
         self.app.send(msg)
 
@@ -182,3 +188,4 @@ class TcpClient(ApiSocket):
         except Exception as e:
             self.on_error(link, c, e)
         self.on_close(link, c)
+        self.quit()

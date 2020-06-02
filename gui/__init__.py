@@ -66,7 +66,7 @@ class Gui(Ui_UI):
         if re == QMessageBox.Yes:
             self.mainWin.hide()
             self.icon.hide()
-            print("退出成功")
+            print("执行GUI退出功能！")
             hasattr(self, "exited") and self.exited()
             sys.exit(0)
 

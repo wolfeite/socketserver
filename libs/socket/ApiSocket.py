@@ -71,6 +71,9 @@ class ApiSocket():
     def clear(self):
         self.links.clear()
 
+    def on_start(self, link, app):
+        self.hook("on_start", link, app)
+
     def on_open(self, link, app):
         self.register(link, *link["address"])
         print(">>on_open", link["address"])
@@ -82,13 +85,16 @@ class ApiSocket():
         recv_alive = self.conf.get("recv_send_alive")[0]
         send_alive = self.conf.get("recv_send_alive")[1]
         if msg == send_alive:
-            print("收到{0}心跳包:{1}".format(link["address"], msg))
+            print("收到{0}响应的心跳包:{1}".format(link["address"], msg))
             link["alive"] = True
             return "recv alive"
         elif msg == recv_alive:
             # time.sleep(10)
+            print("准备响应心跳包:{1}到{0}".format(link["address"], msg))
             self.send(link, msg)
             return "send alive"
+        elif msg == "quit" and self.type == "client":
+            self.quit()
 
         if len(msg) > 200:
             msg = msg[:200] + '..'
@@ -97,13 +103,14 @@ class ApiSocket():
         # self.conf["on_message"](link, server, msg)
 
     def on_error(self, link, app=None, e=None):
+        print("客户端{0}异常导致link断开:{1}{2}".format(link["address"] if link else "None", type(e), e))
         self.hook("on_error", link, app, e)
         # isfunction(self.conf.get("on_error")) and self.conf["on_error"](link, app, e)
         # <class 'ConnectionResetError'> <class 'websocket._exceptions.WebSocketConnectionClosedException'> <class 'ConnectionAbortedError'>
-        print("异常导致link断开!：", e, type(e))
 
     def on_close(self, link, app=None):
         if link and link.get("address"):
+            print("客户端{0}关闭".format(link["address"]))
             address = link["address"]
             self.unregister(*address)
             self.hook("on_close", link, app)
@@ -132,8 +139,8 @@ class ApiSocket():
 
     def _keep_alive_(self, cb=None):
         # heartbeat
-        print("......心跳包......")
         send_alive = self.conf.get("recv_send_alive")[1]
+        print("......准备心跳包......", send_alive)
         c = self.links
         for address, link in c.items():
             alive = link["alive"]
@@ -159,7 +166,12 @@ class ApiSocket():
             if not self.paused:
                 self.on_start_app()
                 # 开始监听
-                self.run_forever()
+                try:
+                    self.run_forever()
+                except Exception as e:
+                    print("run_forever>>>应用服务异常{0}?即将停止子链接".format(e))
+                    self.running = False
+                    self.stop_link_all()
                 self.on_stop_app()
 
             if self.running:
@@ -168,7 +180,7 @@ class ApiSocket():
                     self.counts_restart += 1
                     print("第{0}次重启链接服务器".format(self.counts_restart))
 
-        print("客户端服务结束！")
+        print("应用服务线程执行结束！")
 
     def run(self):
         # 同步完配置
@@ -182,7 +194,7 @@ class ApiSocket():
                 if point in self.links:
                     toPoint = self.links[point]
                 else:
-                    print("没有该链接的客户端！")
+                    print("{0}没有该link,发送失败！".format(toPoint))
                     return False
             # print(toPoint, msg)
             self.emit(toPoint, msg)
@@ -193,7 +205,7 @@ class ApiSocket():
             print("发送消息异常》》", e)
 
     def stop_app(self):
-        print("关闭应用轮询服务！")
+        print("即将stop应用轮询服务！")
         self.loop.stop()
         self.close()
 
@@ -204,6 +216,10 @@ class ApiSocket():
             # client["handler"].request.settimeout(0)
             link["handler"].request.shutdown(2)
             link["handler"].request.close()
+
+    def stop_link_all(self):
+        for address, link in self.links.items():
+            self.stop_link(link)
 
     def close(self):
         if self.type == "server":
